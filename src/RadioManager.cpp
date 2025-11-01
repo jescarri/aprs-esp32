@@ -1,23 +1,20 @@
 #include "RadioManager.h"
 
 RadioManager::RadioManager() 
-    : _radio(RADIO_PTT_PIN, RADIO_PD_PIN, RADIO_TX_POW_PIN),
+    : _radio(RADIO_PTT, RADIO_PD, -1),  // -1 = no TX power pin
       _serial(nullptr),
-      _pd_pin(RADIO_PD_PIN),
-      _ptt_pin(RADIO_PTT_PIN),
-      _tx_pow_pin(RADIO_TX_POW_PIN),
+      _pd_pin((gpio_num_t)RADIO_PD),
+      _ptt_pin((gpio_num_t)RADIO_PTT),
       _initialized(false) {
 }
 
 bool RadioManager::begin(HardwareSerial* serial,
                         gpio_num_t pd_pin,
                         gpio_num_t ptt_pin,
-                        gpio_num_t tx_pow_pin,
                         const RadioConfig& config) {
     _serial = serial;
     _pd_pin = pd_pin;
     _ptt_pin = ptt_pin;
-    _tx_pow_pin = tx_pow_pin;
     _config = config;
     
     if (!_serial) {
@@ -89,8 +86,4 @@ bool RadioManager::configure(const RadioConfig& config) {
 
 void RadioManager::setPowerDown(bool powerdown) {
     _radio.setModulePowerState(powerdown ? LOW : HIGH);
-}
-
-void RadioManager::setTxPower(bool high_power) {
-    _radio.setTxtPower(high_power ? DRA818_HIGH_POW : DRA818_LOW_POW);
 }

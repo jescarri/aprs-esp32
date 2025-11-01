@@ -14,10 +14,10 @@
 class RadioManager {
 public:
     struct RadioConfig {
-        float frequency = DEFAULT_RADIO_FREQ;
-        uint8_t squelch_level = DEFAULT_RADIO_SQUELCH;
-        uint8_t volume = DEFAULT_RADIO_VOLUME;
-        uint8_t mic_gain = DEFAULT_RADIO_MIC_GAIN;
+        float frequency = RADIO_FREC;
+        uint8_t squelch_level = RADIO_SQUELCH_LEVEL;
+        uint8_t volume = RADIO_AUDIO_OUTPUT_VOLUME;
+        uint8_t mic_gain = RADIO_MIC_VOLUME;
         bool narrow_band = false;
         bool rx_enable = true;
         bool tx_enable = true;
@@ -31,14 +31,12 @@ public:
      * @param serial Serial port for AT commands
      * @param pd_pin Power down control pin
      * @param ptt_pin PTT control pin
-     * @param tx_pow_pin TX power selection pin
      * @param config Radio configuration
      * @return true on success
      */
     bool begin(HardwareSerial* serial,
                gpio_num_t pd_pin,
                gpio_num_t ptt_pin,
-               gpio_num_t tx_pow_pin,
                const RadioConfig& config);
     
     /**
@@ -52,12 +50,6 @@ public:
     void setPowerDown(bool powerdown);
     
     /**
-     * Set TX power level
-     * @param high_power true = 1W, false = 0.5W
-     */
-    void setTxPower(bool high_power);
-    
-    /**
      * Get initialization status
      */
     bool isInitialized() const { return _initialized; }
@@ -68,7 +60,6 @@ private:
     RadioConfig _config;
     gpio_num_t _pd_pin;
     gpio_num_t _ptt_pin;
-    gpio_num_t _tx_pow_pin;
     bool _initialized;
 };
 

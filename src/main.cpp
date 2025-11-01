@@ -40,18 +40,20 @@ void setupSerial() {
     Serial.println("\n\n=================================");
     Serial.println("ESP32 APRS Tracker");
     Serial.println("=================================");
+    Serial.printf("[BOARD] UARTs: Console=UART0(USB), GPS=UART2(%d/%d@%d), Radio=UART1(%d/%d@%d)\n",
+                 GPS_RX, GPS_TX, GPS_BAUDRATE, RADIO_RX, RADIO_TX, RADIO_BAUDRATE);
     
-    // === Serial 1: GPS Module ===
+    // === Serial 2: GPS Module ===
     Serial.println("Initializing GPS (Serial1)...");
-    Serial1.begin(GPS_BAUDRATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+    Serial1.begin(GPS_BAUDRATE, SERIAL_8N1, GPS_RX, GPS_TX);
     while (!Serial1) { /* wait */ }
     Serial1.flush();
     delay(500);
     Serial.println("✓ GPS Serial initialized");
     
-    // === Serial 2: Radio Module (DRA818) ===
+    // === Serial 1: Radio Module (DRA818) ===
     Serial.println("Initializing Radio (Serial2)...");
-    Serial2.begin(RADIO_BAUDRATE, SERIAL_8N1, RADIO_RX_PIN, RADIO_TX_PIN);
+    Serial2.begin(RADIO_BAUDRATE, SERIAL_8N1, RADIO_RX, RADIO_TX);
     while (!Serial2) { /* wait */ }
     Serial2.flush();
     delay(500);
@@ -60,7 +62,7 @@ void setupSerial() {
 
 void setupSensors() {
     Serial.println("\nInitializing I2C sensors...");
-    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+    Wire.begin(I2C_SDA, I2C_SCL);
     
     if (!bme.begin(0x76)) {
         Serial.println("⚠ BME280 sensor not found!");
@@ -71,26 +73,31 @@ void setupSensors() {
 
 void setupRadio() {
     Serial.println("\nInitializing DRA818 Radio...");
+    Serial.printf("[GPIO] PTT=%d PD=%d DAC_OUT=%d\n", RADIO_PTT, RADIO_PD, RADIO_AUDIO_OUT);
     
     // Set up radio control pins
-    pinMode(RADIO_PD_PIN, OUTPUT);
-    pinMode(RADIO_TX_POW_PIN, OUTPUT);
-    digitalWrite(RADIO_PD_PIN, HIGH);  // Power on
-    digitalWrite(RADIO_TX_POW_PIN, DEFAULT_RADIO_TX_POWER);
+    pinMode(RADIO_PD, OUTPUT);
+    pinMode(RADIO_PTT, OUTPUT);
+    digitalWrite(RADIO_PD, HIGH);  // Power on
+    digitalWrite(RADIO_PTT, PTT_ACTIVE_LOW ? HIGH : LOW);  // PTT off (idle)
+    
+    delay(100);  // Give radio time to power up
     
     // Configure radio
     RadioManager::RadioConfig radioConfig;
-    radioConfig.frequency = DEFAULT_RADIO_FREQ;
-    radioConfig.squelch_level = DEFAULT_RADIO_SQUELCH;
-    radioConfig.volume = DEFAULT_RADIO_VOLUME;
-    radioConfig.mic_gain = DEFAULT_RADIO_MIC_GAIN;
+    radioConfig.frequency = RADIO_FREC;
+    radioConfig.squelch_level = RADIO_SQUELCH_LEVEL;
+    radioConfig.volume = RADIO_AUDIO_OUTPUT_VOLUME;
+    radioConfig.mic_gain = RADIO_MIC_VOLUME;
     radioConfig.narrow_band = false;
     radioConfig.rx_enable = true;
     radioConfig.tx_enable = true;
     
-    if (radio.begin(&Serial2, RADIO_PD_PIN, RADIO_PTT_PIN, 
-                   RADIO_TX_POW_PIN, radioConfig)) {
+    if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
         Serial.println("✓ Radio initialized successfully");
+        Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n",
+                     RADIO_FREC, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
+                     RADIO_AUDIO_OUTPUT_VOLUME, PTT_ACTIVE_LOW ? "ACTIVE_LOW" : "ACTIVE_HIGH");
     } else {
         Serial.println("✗ Radio initialization FAILED!");
     }
@@ -100,17 +107,17 @@ void setupAPRS() {
     Serial.println("\nInitializing APRS...");
     
     APRS::Config aprsConfig;
-    aprsConfig.callsign = "VA7RCV";  // ⚠ CHANGE THIS TO YOUR CALLSIGN!
-    aprsConfig.ssid = 15;
+    aprsConfig.callsign = DEFAULT_APRS_CALLSIGN;
+    aprsConfig.ssid = APRS_SSID;
     aprsConfig.path1 = "WIDE1";
     aprsConfig.path1_ssid = 1;
     aprsConfig.path2 = "WIDE2";
     aprsConfig.path2_ssid = 2;
-    aprsConfig.symbol = 'n';  // Car/navigation
-    aprsConfig.symbol_table = '/';
+    aprsConfig.symbol = DEFAULT_APRS_SYMBOL;
+    aprsConfig.symbol_table = DEFAULT_APRS_TABLE;
     aprsConfig.preamble_ms = DEFAULT_PREAMBLE_MS;
     aprsConfig.tail_ms = DEFAULT_TAIL_MS;
-    aprsConfig.ptt_pin = APRS_PTT_PIN;
+    aprsConfig.ptt_pin = RADIO_PTT;
     
     if (aprs.begin(aprsConfig)) {
         Serial.println("✓ APRS initialized");

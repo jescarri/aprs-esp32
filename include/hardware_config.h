@@ -7,8 +7,7 @@
 /**
  * ESP32 APRS Tracker Hardware Configuration
  * 
- * This file contains all GPIO pin assignments and hardware configuration
- * for the ESP32 APRS tracker based on NodeMCU-32S board.
+ * Aligned with esp32-tracker project GPIO definitions.
  * 
  * WIRING DIAGRAM:
  * ===============
@@ -16,14 +15,15 @@
  * DRA818 Radio Module:
  *   - PD (Power Down)  -> GPIO 5
  *   - PTT (Push-to-Talk) -> GPIO 33
- *   - TX Power Control -> GPIO 26
  *   - RX (Serial)      -> GPIO 18
  *   - TX (Serial)      -> GPIO 19
- *   - Audio In         -> GPIO 25 (I2S DAC)
+ *   - Audio Out (DAC1) -> GPIO 25
+ *   - Audio In (ADC)   -> GPIO 36 (input-only)
+ *   - Audio Trigger    -> GPIO 32 (unused in code)
  * 
  * GPS Module:
- *   - RX (GPS TX)      -> GPIO 16
- *   - TX (GPS RX)      -> GPIO 17
+ *   - RX (ESP32 RX <- GPS TX) -> GPIO 16
+ *   - TX (ESP32 TX -> GPS RX) -> GPIO 17
  * 
  * BME280 Sensor (I2C):
  *   - SDA              -> GPIO 21
@@ -36,46 +36,46 @@
 // ============================================================================
 // APRS/I2S Audio Configuration
 // ============================================================================
-#define APRS_AUDIO_OUT_PIN      GPIO_NUM_25  // I2S DAC output to radio audio in
-#define APRS_PTT_PIN            GPIO_NUM_33  // Push-to-talk control
+#define RADIO_AUDIO_OUT         25           // I2S DAC output to radio audio in
+#define RADIO_AUDIO_IN          36           // Radio audio out (ADC, input-only)
+#define RADIO_AUDIO_TRIGGER     32           // Defined but not used
 
 // ============================================================================
 // Radio (DRA818) Control Pins
 // ============================================================================
-#define RADIO_PTT_PIN           GPIO_NUM_33  // PTT control (same as APRS_PTT_PIN)
-#define RADIO_PD_PIN            GPIO_NUM_5   // Power down control
-#define RADIO_TX_POW_PIN        GPIO_NUM_26  // TX power control (0=LOW, 1=HIGH)
+#define RADIO_PTT               33           // PTT control (active LOW)
+#define RADIO_PD                5            // Power down control
 
 // ============================================================================
 // Serial Port Configurations
 // ============================================================================
 
-// Serial Port 0: USB/Debug Console
+// Serial Port 0: USB/Debug Console (UART0 - default Serial)
 // RX: GPIO 3 (implicit, USB)
 // TX: GPIO 1 (implicit, USB)
 #define CONSOLE_BAUDRATE        115200
 
-// Serial Port 1: GPS Module
-#define GPS_RX_PIN              16  // ESP32 RX <- GPS TX
-#define GPS_TX_PIN              17  // ESP32 TX -> GPS RX
-#define GPS_BAUDRATE            9600
-
-// Serial Port 2: Radio (DRA818) Module
-#define RADIO_RX_PIN            18  // ESP32 RX <- Radio TX
-#define RADIO_TX_PIN            19  // ESP32 TX -> Radio RX
+// Serial Port 1: Radio (DRA818) Module (HardwareSerial(1))
+#define RADIO_RX                18  // ESP32 RX <- Radio TX
+#define RADIO_TX                19  // ESP32 TX -> Radio RX
 #define RADIO_BAUDRATE          9600
+
+// Serial Port 2: GPS Module (HardwareSerial(2))
+#define GPS_RX                  16  // ESP32 RX <- GPS TX
+#define GPS_TX                  17  // ESP32 TX -> GPS RX
+#define GPS_BAUDRATE            9600
 
 // ============================================================================
 // I2C Bus Configuration (for sensors like BME280)
 // ============================================================================
-#define I2C_SDA_PIN             21
-#define I2C_SCL_PIN             22
+#define I2C_SDA                 21
+#define I2C_SCL                 22
 #define I2C_FREQUENCY           100000  // 100kHz
 
 // ============================================================================
 // Optional/Future Use Pins
 // ============================================================================
-#define ONE_WIRE_EXT_PIN        13
+#define ONE_WIRE_EXT            13
 
 // ============================================================================
 // I2S Configuration for AFSK/APRS Audio Generation
@@ -90,17 +90,17 @@
 // ============================================================================
 // Radio Default Configuration
 // ============================================================================
-#define DEFAULT_RADIO_FREQ      144.9900     // MHz
-#define DEFAULT_RADIO_SQUELCH   7            // 0-8
-#define DEFAULT_RADIO_VOLUME    8            // 1-8
-#define DEFAULT_RADIO_MIC_GAIN  8            // 1-8
-#define DEFAULT_RADIO_TX_POWER  0            // 0=LOW (0.5W), 1=HIGH (1W)
+#define RADIO_FREC                    144.9900  // MHz
+#define RADIO_SQUELCH_LEVEL           7         // 0-8
+#define RADIO_AUDIO_OUTPUT_VOLUME     8         // 1-8
+#define RADIO_MIC_VOLUME              8         // 1-8
 
 // ============================================================================
 // APRS Configuration Defaults
 // ============================================================================
-#define DEFAULT_APRS_CALLSIGN   "NOCALL"
-#define DEFAULT_APRS_SSID       15
+#define APRS_SSID               15
+#define OPEN_SQUELCH            false
+#define DEFAULT_APRS_CALLSIGN   "VA7RCV"
 #define DEFAULT_APRS_SYMBOL     'n'          // Navigation/car
 #define DEFAULT_APRS_TABLE      '/'          // Primary symbol table
 #define DEFAULT_PREAMBLE_MS     350          // Pre-transmission flags
@@ -109,8 +109,15 @@
 // ============================================================================
 // Timing Configuration
 // ============================================================================
-#define APRS_TX_INTERVAL_MS     300000       // 5 minutes between transmissions
+#define APRS_TX_CYCLE_SECONDS   300          // 5 minutes between transmissions
 #define GPS_UPDATE_INTERVAL_MS  1000         // Check GPS every second
 #define TELEMETRY_EVERY_N_POS   3            // Send telemetry every 3rd position
+
+// ============================================================================
+// PTT Configuration
+// ============================================================================
+#define PTT_ACTIVE_LOW          1            // PTT is active LOW
+#define APRS_PTT_PRE_MS         250          // PTT lead time before audio
+#define APRS_PTT_TAIL_MS        120          // PTT tail time after audio
 
 #endif // HARDWARE_CONFIG_H
