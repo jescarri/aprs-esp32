@@ -86,3 +86,7 @@ bool RadioManager::configure(const RadioConfig& config) {
 void RadioManager::setPowerDown(bool powerdown) {
     _radio.setModulePowerState(powerdown ? LOW : HIGH);
 }
+
+bool RadioManager::setMicVolume() {
+    return _radio.setMicVolume();
+}

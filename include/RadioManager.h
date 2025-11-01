@@ -50,6 +50,13 @@ public:
     void setPowerDown(bool powerdown);
     
     /**
+     * Set microphone volume
+     * Calls the DRA818's setMicVolume() command
+     * @return true on success
+     */
+    bool setMicVolume();
+    
+    /**
      * Get initialization status
      */
     bool isInitialized() const { return _initialized; }
