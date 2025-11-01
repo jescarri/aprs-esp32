@@ -3,9 +3,13 @@
 #include <Adafruit_BME280.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <WiFi.h>
 #include <APRS.h>
 #include "hardware_config.h"
 #include "RadioManager.h"
+#include "Settings.h"
+#include "APRSConfig.h"
+#include "ConfigPortal.h"
 
 // Disable Bluetooth and WiFi to save power
 #include <esp_bt.h>
@@ -75,6 +79,9 @@ void setupRadio() {
     Serial.println("\nInitializing DRA818 Radio...");
     Serial.printf("[GPIO] PTT=%d PD=%d DAC_OUT=%d\n", RADIO_PTT, RADIO_PD, RADIO_AUDIO_OUT);
     
+    // Load config from Settings
+    APRSConfig config = loadAPRSConfig();
+    
     // Set up radio control pins but DON'T power on yet
     pinMode(RADIO_PD, OUTPUT);
     pinMode(RADIO_PTT, OUTPUT);
@@ -85,16 +92,16 @@ void setupRadio() {
     while (!Serial2) { /* wait */ }
     Serial2.flush();
     Serial.println("Waiting 2 seconds before powering radio...");
-    delay(2000);  // OLD CODE: 2 second delay after flush
+    delay(2000);
     
     // NOW power on the radio
     Serial.println("Powering on radio (PD=HIGH)...");
     digitalWrite(RADIO_PD, HIGH);  
-    delay(1000);  // OLD CODE: 1 second delay after power on
+    delay(1000);
     
-    // Configure radio
+    // Configure radio with values from Settings
     RadioManager::RadioConfig radioConfig;
-    radioConfig.frequency = RADIO_FREC;
+    radioConfig.frequency = config.frequency;
     radioConfig.squelch_level = RADIO_SQUELCH_LEVEL;
     radioConfig.volume = RADIO_AUDIO_OUTPUT_VOLUME;
     radioConfig.mic_gain = RADIO_MIC_VOLUME;
@@ -106,7 +113,7 @@ void setupRadio() {
     if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
         Serial.println("✓ Radio initialized successfully");
         Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n",
-                     RADIO_FREC, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
+                     config.frequency, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
                      RADIO_AUDIO_OUTPUT_VOLUME, PTT_ACTIVE_LOW ? "ACTIVE_LOW" : "ACTIVE_HIGH");
     } else {
         Serial.println("✗ Radio initialization FAILED!");
@@ -116,17 +123,20 @@ void setupRadio() {
 void setupAPRS() {
     Serial.println("\nInitializing APRS...");
     
+    // Load config from Settings
+    APRSConfig config = loadAPRSConfig();
+    
     APRS::Config aprsConfig;
-    aprsConfig.callsign = DEFAULT_APRS_CALLSIGN;
-    aprsConfig.ssid = APRS_SSID;
-    aprsConfig.path1 = "WIDE1";
-    aprsConfig.path1_ssid = 1;
-    aprsConfig.path2 = "WIDE2";
-    aprsConfig.path2_ssid = 2;
-    aprsConfig.symbol = DEFAULT_APRS_SYMBOL;
-    aprsConfig.symbol_table = DEFAULT_APRS_TABLE;
-    aprsConfig.preamble_ms = DEFAULT_PREAMBLE_MS;
-    aprsConfig.tail_ms = DEFAULT_TAIL_MS;
+    aprsConfig.callsign = config.callsign;
+    aprsConfig.ssid = config.ssid;
+    aprsConfig.path1 = config.path1;
+    aprsConfig.path1_ssid = config.path1_ssid;
+    aprsConfig.path2 = config.path2;
+    aprsConfig.path2_ssid = config.path2_ssid;
+    aprsConfig.symbol = config.symbol;
+    aprsConfig.symbol_table = config.symbol_table;
+    aprsConfig.preamble_ms = config.preamble_ms;
+    aprsConfig.tail_ms = config.tail_ms;
     aprsConfig.ptt_pin = RADIO_PTT;
     
     if (aprs.begin(aprsConfig)) {
@@ -218,7 +228,10 @@ void sendAPRSTelemetry() {
 
 void transmitAPRS() {
     unsigned long now = millis();
-    unsigned long tx_interval_ms = APRS_TX_CYCLE_SECONDS * 1000;
+    
+    // Load config to get update interval
+    APRSConfig config = loadAPRSConfig();
+    unsigned long tx_interval_ms = config.update_interval_min * 60 * 1000;  // Convert minutes to ms
     
     // Check if it's time to transmit
     if (now - lastTransmission < tx_interval_ms && lastTransmission != 0) {
@@ -250,7 +263,7 @@ void transmitAPRS() {
     lastTransmission = now;
     transmissionCount++;
     
-    Serial.printf("\nNext transmission in %d seconds\n", APRS_TX_CYCLE_SECONDS);
+    Serial.printf("\nNext transmission in %d minutes\n", config.update_interval_min);
     Serial.println("=====================================\n");
 }
 
@@ -259,10 +272,48 @@ void transmitAPRS() {
 // ============================================================================
 
 void setup() {
-    // Disable BT and WiFi to save power
+    // Disable BT initially (WiFi stays off unless we need config portal)
     btStop();
-    esp_wifi_stop();
     esp_bt_controller_disable();
+    
+    // Initialize serial first for logging
+    Serial.begin(CONSOLE_BAUDRATE);
+    delay(500);
+    
+    Serial.println("\n\n=================================");
+    Serial.println("ESP32 APRS Tracker");
+    Serial.println("=================================");
+    
+    // Initialize Settings
+    settings_init();
+    
+    // Check config trigger pin
+    pinMode(CONFIG_TRIGGER_PIN, INPUT_PULLUP);
+    bool configTrigger = (digitalRead(CONFIG_TRIGGER_PIN) == LOW);
+    bool configured = isAPRSConfigured();
+    
+    Serial.printf("[CONFIG] Config trigger (GPIO%d): %s\n", CONFIG_TRIGGER_PIN, 
+                 configTrigger ? "ACTIVE" : "inactive");
+    Serial.printf("[CONFIG] Configuration status: %s\n", 
+                 configured ? "configured" : "NOT CONFIGURED");
+    
+    // Enter config portal if needed
+    if (configTrigger || !configured) {
+        Serial.println("\n[CONFIG] Entering configuration mode...");
+        
+        // Enable WiFi for configuration
+        WiFi.mode(WIFI_STA);
+        
+        // Start config portal (no timeout - wait for user)
+        startConfigPortal(0);
+        
+        // After config portal exits, device will restart
+        // This code won't be reached
+    }
+    
+    // Normal operation - disable WiFi completely
+    WiFi.mode(WIFI_OFF);
+    esp_wifi_stop();
     
     // Initialize all subsystems
     setupSerial();
