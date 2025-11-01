@@ -227,7 +227,107 @@ aprs.sendTelemetry(telem);  // Handles formatting automatically
 | **Error Handling** | void functions | Returns bool |
 | **Decoder Code** | Included (unused) | Removed |
 
-## Configuration
+## APRS Configuration Reference
+
+### SSID Values (Station Types)
+
+The SSID field (0-15) indicates the type of station. Use these standard values:
+
+| SSID | Icon | Description | Typical Use |
+|------|------|-------------|-------------|
+| **0** | 🏠 | Primary Station | Home/fixed station |
+| **1** | 📡 | Generic | Generic additional station |
+| **2** | 📡 | Generic | Generic additional station |
+| **3** | 📡 | Generic | Generic additional station |
+| **4** | 📡 | Generic | Generic additional station |
+| **5** | 🌐 | Other Networks | Gateway/IGate |
+| **6** | 📡 | Special Activity | Satellite operations |
+| **7** | 📱 | Handheld | Walkie-talkie/HT |
+| **8** | ⛵ | Boats/Maritime | Ships, boats, maritime mobile |
+| **9** | 🚗 | Mobile | Primary vehicle |
+| **10** | 💻 | Internet/D-STAR | Internet/D-STAR connected |
+| **11** | 🎈 | Balloons | High-altitude balloons |
+| **12** | 🎒 | Portable | Camping, field operations |
+| **13** | 🌦️ | Weather Station | Automatic weather station |
+| **14** | 🚚 | Trucking | Trucking/shipping |
+| **15** | ➕ | Generic Additional | Generic additional/experimental |
+
+**Example Configuration:**
+```cpp
+config.ssid = 9;  // Mobile vehicle tracker
+```
+
+### APRS Symbols
+
+The symbol character defines what icon appears on APRS maps. Common symbols:
+
+#### Vehicles
+| Code | Symbol | Description |
+|------|--------|-------------|
+| `n` | 🚗 | Car/Truck (navigation) |
+| `>` | 🚙 | Small car |
+| `v` | 🚐 | Van |
+| `j` | 🚙 | Jeep |
+| `u` | 🚚 | Truck (large) |
+| `R` | 🚘 | Recreational Vehicle (RV) |
+| `b` | 🚲 | Bicycle |
+
+#### Aircraft & Marine
+| Code | Symbol | Description |
+|------|--------|-------------|
+| `'` | ✈️ | Small aircraft |
+| `^` | 🛩️ | Large aircraft |
+| `X` | 🚁 | Helicopter |
+| `k` | 🚢 | Ship/boat (large) |
+| `s` | ⛵ | Sailboat |
+| `Y` | ⛵ | Yacht |
+
+#### People & Buildings
+| Code | Symbol | Description |
+|------|--------|-------------|
+| `[` | 👤 | Person (jogger) |
+| `-` | 🏠 | House |
+| `a` | 🚑 | Ambulance |
+| `f` | 🚒 | Fire truck |
+| `!` | 🚨 | Police/Emergency |
+
+#### Weather & Special
+| Code | Symbol | Description |
+|------|--------|-------------|
+| `_` | 🌦️ | Weather station |
+| `O` | 🎈 | Balloon |
+| `/` | ⚫ | Dot (generic position) |
+
+### Symbol Tables
+
+APRS has two symbol tables:
+
+| Table | Character | Description |
+|-------|-----------|-------------|
+| **Primary** | `/` | Most common symbols (default) |
+| **Alternate** | `\` | Alternate/overlaid symbols |
+
+**Example Configuration:**
+```cpp
+config.symbol = 'n';           // Car symbol
+config.symbol_table = '/';     // Primary table
+```
+
+### Complete Configuration Example
+
+```cpp
+APRS::Config config;
+config.callsign = "VA7RCV";    // Your callsign
+config.ssid = 9;                // Mobile vehicle
+config.symbol = 'n';            // Car icon
+config.symbol_table = '/';      // Primary table
+config.path1 = "WIDE1";
+config.path1_ssid = 1;
+config.path2 = "WIDE2";
+config.path2_ssid = 2;
+```
+
+## Hardware Configuration
 
 Edit `include/hardware_config.h` to customize:
 - GPIO pin assignments

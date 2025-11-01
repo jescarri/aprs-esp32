@@ -47,38 +47,44 @@ public:
                                    char* buffer);
     
     /**
-     * Build PARM (parameter names) definition packet
+     * Build PARM (parameter names) definition message
      * 
+     * @param callsign Station callsign
+     * @param ssid Station SSID
      * @param names Array of 5 parameter names
      * @param buffer Output buffer (must be at least 128 bytes)
      * @return Length of packet
      * 
-     * Format: PARM.Battery,Temp,Pressure,Humidity,Altitude
+     * Format: :CALLSIGN  :PARM.Battery,Temp,Pressure,Humidity,Altitude
      */
-    static size_t buildParmPacket(const char* names[5], char* buffer);
+    static size_t buildParmPacket(const char* callsign, uint8_t ssid,
+                                   const char* names[5], char* buffer);
     
     /**
-     * Build UNIT (units) definition packet
+     * Build UNIT (units) definition message
      * 
+     * @param callsign Station callsign
+     * @param ssid Station SSID
      * @param units Array of 5 unit names
      * @param buffer Output buffer (must be at least 128 bytes)
      * @return Length of packet
      * 
-     * Format: UNIT.volts,deg.C,mbar,%,meters
+     * Format: :CALLSIGN  :UNIT.volts,deg.C,mbar,%,meters
      */
-    static size_t buildUnitPacket(const char* units[5], char* buffer);
+    static size_t buildUnitPacket(const char* callsign, uint8_t ssid,
+                                   const char* units[5], char* buffer);
     
     /**
-     * Build standard tracker telemetry PARM packet
+     * Build standard tracker telemetry PARM message
      * Defines: Battery, Temp, Pressure, Humidity, Altitude
      */
-    static size_t buildStandardParmPacket(char* buffer);
+    static size_t buildStandardParmPacket(const char* callsign, uint8_t ssid, char* buffer);
     
     /**
-     * Build standard tracker telemetry UNIT packet
+     * Build standard tracker telemetry UNIT message
      * Defines: volts, deg.C, mbar, %, meters
      */
-    static size_t buildStandardUnitPacket(char* buffer);
+    static size_t buildStandardUnitPacket(const char* callsign, uint8_t ssid, char* buffer);
     
     /**
      * Convert float to APRS telemetry format (3 decimal digits)

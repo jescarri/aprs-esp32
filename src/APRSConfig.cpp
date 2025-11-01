@@ -83,7 +83,7 @@ APRSConfig loadAPRSConfig()
     config.frequency = settings_get_float("frequency", RADIO_FREC);
     config.preamble_ms = settings_get_int("preamble_ms", DEFAULT_PREAMBLE_MS);
     config.tail_ms = settings_get_int("tail_ms", DEFAULT_TAIL_MS);
-    config.update_interval_min = settings_get_int("update_interval_min", APRS_TX_CYCLE_SECONDS / 60);
+    config.update_interval_min = settings_get_int("update_min", APRS_TX_CYCLE_SECONDS / 60);
     
     return config;
 }
@@ -110,7 +110,7 @@ void saveAPRSConfig(const APRSConfig& config)
     settings_put_float("frequency", config.frequency);
     settings_put_int("preamble_ms", config.preamble_ms);
     settings_put_int("tail_ms", config.tail_ms);
-    settings_put_int("update_interval_min", config.update_interval_min);
+    settings_put_int("update_min", config.update_interval_min);
     
     // Mark configuration as complete
     settings_put_bool("config_done", true);

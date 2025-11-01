@@ -3,7 +3,21 @@
 #include "Settings.h"
 #include <WiFiManager.h>
 
-// Storage for form field values
+// WiFiManagerParameter pointers - must persist until callback completes
+static WiFiManagerParameter* paramCallsign = nullptr;
+static WiFiManagerParameter* paramSsid = nullptr;
+static WiFiManagerParameter* paramSymbol = nullptr;
+static WiFiManagerParameter* paramSymbolTable = nullptr;
+static WiFiManagerParameter* paramPath1 = nullptr;
+static WiFiManagerParameter* paramPath1Ssid = nullptr;
+static WiFiManagerParameter* paramPath2 = nullptr;
+static WiFiManagerParameter* paramPath2Ssid = nullptr;
+static WiFiManagerParameter* paramFrequency = nullptr;
+static WiFiManagerParameter* paramPreamble = nullptr;
+static WiFiManagerParameter* paramTail = nullptr;
+static WiFiManagerParameter* paramUpdateInterval = nullptr;
+
+// Buffer storage for form field initial values
 static char callsignBuf[10];
 static char ssidBuf[8];
 static char symbolBuf[4];
@@ -24,58 +38,96 @@ static void saveConfigCallback()
 {
     Serial.println("\n[ConfigPortal] Saving configuration...");
     
+    // Get values from WiFiManager parameters
+    const char* callsign_input = paramCallsign->getValue();
+    const char* ssid_input = paramSsid->getValue();
+    
+    // Debug: Show form data from getValue()
+    Serial.printf("[DEBUG] Form data from getValue():\n");
+    Serial.printf("  callsign: '%s'\n", callsign_input);
+    Serial.printf("  ssid: '%s'\n", ssid_input);
+    
+    const char* sym = paramSymbol->getValue();
+    Serial.printf("  symbol: len=%d", strlen(sym));
+    if (strlen(sym) > 0) {
+        Serial.printf(" hex=0x%02X\n", (uint8_t)sym[0]);
+    } else {
+        Serial.println(" (empty)");
+    }
+    
+    const char* tbl = paramSymbolTable->getValue();
+    Serial.printf("  symbol_table: len=%d", strlen(tbl));
+    if (strlen(tbl) > 0) {
+        Serial.printf(" hex=0x%02X\n", (uint8_t)tbl[0]);
+    } else {
+        Serial.println(" (empty)");
+    }
+    
     // Parse and save APRS configuration
     APRSConfig config;
     
-    // Callsign and SSID
-    strncpy(config.callsign, callsignBuf, sizeof(config.callsign) - 1);
+    // Callsign - convert to uppercase and validate
+    strncpy(config.callsign, callsign_input, sizeof(config.callsign) - 1);
     config.callsign[sizeof(config.callsign) - 1] = '\0';
-    config.ssid = atoi(ssidBuf);
+    
+    // Convert to uppercase
+    for (int i = 0; config.callsign[i]; i++) {
+        config.callsign[i] = toupper(config.callsign[i]);
+    }
+    
+    // If empty, set to NOCALL
+    if (strlen(config.callsign) == 0) {
+        strcpy(config.callsign, "NOCALL");
+    }
+    
+    config.ssid = atoi(ssid_input);
     if (config.ssid > 15) config.ssid = 15;
     
     // Symbol
-    if (strlen(symbolBuf) > 0) {
-        config.symbol = symbolBuf[0];
+    const char* symbol_input = paramSymbol->getValue();
+    if (strlen(symbol_input) > 0) {
+        config.symbol = symbol_input[0];
     } else {
         config.symbol = 'n';  // Default: car
     }
     
     // Symbol table
-    if (strlen(symbolTableBuf) > 0) {
-        config.symbol_table = symbolTableBuf[0];
+    const char* table_input = paramSymbolTable->getValue();
+    if (strlen(table_input) > 0) {
+        config.symbol_table = table_input[0];
     } else {
         config.symbol_table = '/';  // Default: primary table
     }
     
     // Paths
-    strncpy(config.path1, path1Buf, sizeof(config.path1) - 1);
+    strncpy(config.path1, paramPath1->getValue(), sizeof(config.path1) - 1);
     config.path1[sizeof(config.path1) - 1] = '\0';
-    config.path1_ssid = atoi(path1SsidBuf);
+    config.path1_ssid = atoi(paramPath1Ssid->getValue());
     if (config.path1_ssid > 7) config.path1_ssid = 7;
     if (config.path1_ssid < 1) config.path1_ssid = 1;
     
-    strncpy(config.path2, path2Buf, sizeof(config.path2) - 1);
+    strncpy(config.path2, paramPath2->getValue(), sizeof(config.path2) - 1);
     config.path2[sizeof(config.path2) - 1] = '\0';
-    config.path2_ssid = atoi(path2SsidBuf);
+    config.path2_ssid = atoi(paramPath2Ssid->getValue());
     if (config.path2_ssid > 7) config.path2_ssid = 7;
     if (config.path2_ssid < 1) config.path2_ssid = 1;
     
     // Frequency
-    config.frequency = atof(frequencyBuf);
+    config.frequency = atof(paramFrequency->getValue());
     if (config.frequency < 144.0 || config.frequency > 148.0) {
         config.frequency = 144.990;  // Default
     }
     
     // Timing
-    config.preamble_ms = atoi(preambleBuf);
+    config.preamble_ms = atoi(paramPreamble->getValue());
     if (config.preamble_ms < 100) config.preamble_ms = 100;
     if (config.preamble_ms > 1000) config.preamble_ms = 1000;
     
-    config.tail_ms = atoi(tailBuf);
+    config.tail_ms = atoi(paramTail->getValue());
     if (config.tail_ms < 10) config.tail_ms = 10;
     if (config.tail_ms > 500) config.tail_ms = 500;
     
-    config.update_interval_min = atoi(updateIntervalBuf);
+    config.update_interval_min = atoi(paramUpdateInterval->getValue());
     if (config.update_interval_min < 1) config.update_interval_min = 1;
     if (config.update_interval_min > 60) config.update_interval_min = 60;
     
@@ -122,144 +174,71 @@ bool startConfigPortal(int timeoutSeconds)
     wm.setConfigPortalBlocking(true);
     wm.setSaveConfigCallback(saveConfigCallback);
     
+    // Clean up old parameters if they exist
+    delete paramCallsign;
+    delete paramSsid;
+    delete paramSymbol;
+    delete paramSymbolTable;
+    delete paramPath1;
+    delete paramPath1Ssid;
+    delete paramPath2;
+    delete paramPath2Ssid;
+    delete paramFrequency;
+    delete paramPreamble;
+    delete paramTail;
+    delete paramUpdateInterval;
+    
     // Add custom parameters with helpful placeholders and patterns
     WiFiManagerParameter customHeading("<h2>APRS Configuration</h2>");
     wm.addParameter(&customHeading);
     
-    WiFiManagerParameter paramCallsign("callsign", "Callsign (max 6 chars)", callsignBuf, 10, 
+    paramCallsign = new WiFiManagerParameter("callsign", "Callsign (max 6 chars)", callsignBuf, 10, 
                                        "maxlength='6' pattern='[A-Z0-9]{1,6}' style='text-transform:uppercase'");
     
-    // SSID Dropdown with descriptions
-    char ssidHtml[1024];
-    snprintf(ssidHtml, sizeof(ssidHtml),
-        "<label for='ssid'>SSID (Station Type)</label>"
-        "<select name='ssid' id='ssid'>"
-        "<option value='0'%s>0 - 🏠 Primary station (usually home)</option>"
-        "<option value='7'%s>7 - 📱 Handheld radio</option>"
-        "<option value='9'%s>9 - 🚗 Mobile (car/truck)</option>"
-        "<option value='1'%s>1 - 📡 Generic/Digipeater</option>"
-        "<option value='5'%s>5 - 🌐 Other networks</option>"
-        "<option value='8'%s>8 - ⛵ Boats/ships/aircraft</option>"
-        "<option value='10'%s>10 - 💻 Internet/D-STAR</option>"
-        "<option value='11'%s>11 - 🎈 Balloons</option>"
-        "<option value='12'%s>12 - 🎒 Portable (camping)</option>"
-        "<option value='13'%s>13 - 🌦️ Weather station</option>"
-        "<option value='14'%s>14 - 🚚 Trucking</option>"
-        "<option value='15'%s>15 - ➕ Generic additional</option>"
-        "</select>",
-        atoi(ssidBuf)==0 ? " selected" : "",
-        atoi(ssidBuf)==7 ? " selected" : "",
-        atoi(ssidBuf)==9 ? " selected" : "",
-        atoi(ssidBuf)==1 ? " selected" : "",
-        atoi(ssidBuf)==5 ? " selected" : "",
-        atoi(ssidBuf)==8 ? " selected" : "",
-        atoi(ssidBuf)==10 ? " selected" : "",
-        atoi(ssidBuf)==11 ? " selected" : "",
-        atoi(ssidBuf)==12 ? " selected" : "",
-        atoi(ssidBuf)==13 ? " selected" : "",
-        atoi(ssidBuf)==14 ? " selected" : "",
-        atoi(ssidBuf)==15 ? " selected" : "");
-    WiFiManagerParameter paramSsidDropdown(ssidHtml);
+    paramSsid = new WiFiManagerParameter("ssid", "SSID (0-15, see APRS spec)", ssidBuf, 8,
+                                       "type='number' min='0' max='15'");
     
-    // Symbol Dropdown with Unicode icons
-    char symbolHtml[2048];
-    String currentSymbol = String(symbolBuf[0]);
-    snprintf(symbolHtml, sizeof(symbolHtml),
-        "<label for='symbol'>APRS Symbol (Map Icon)</label>"
-        "<select name='symbol' id='symbol'>"
-        "<option value='n'%s>🚗 Car/Truck (n)</option>"
-        "<option value='>'%s>🚙 Small car (>)</option>"
-        "<option value='v'%s>🚐 Van (v)</option>"
-        "<option value='b'%s>🚲 Bicycle (b)</option>"
-        "<option value='k'%s>🚢 Ship/boat (k)</option>"
-        "<option value='s'%s>⛵ Sailboat (s)</option>"
-        "<option value='\''%s>✈️ Small aircraft (')</option>"
-        "<option value='^'%s>🛩️ Large aircraft (^)</option>"
-        "<option value='['%s>👤 Person (jogger) ([)</option>"
-        "<option value='-'%s>🏠 House (-)</option>"
-        "<option value='_'%s>🌦️ Weather station (_)</option>"
-        "<option value='!'%s>🚨 Police/Fire (!)</option>"
-        "<option value='a'%s>🚑 Ambulance (a)</option>"
-        "<option value='f'%s>🚒 Fire truck (f)</option>"
-        "<option value='j'%s>🚙 Jeep (j)</option>"
-        "<option value='u'%s>🚚 Truck (u)</option>"
-        "<option value='O'%s>🎈 Balloon (O)</option>"
-        "<option value='/'%s>⚫ Dot (/)</option>"
-        "<option value='R'%s>🚘 Recreational vehicle (R)</option>"
-        "<option value='Y'%s>⛵ Yacht (Y)</option>"
-        "</select>"
-        "<br><small>Symbol appears as icon on APRS maps</small>",
-        currentSymbol=="n" ? " selected" : "",
-        currentSymbol==">" ? " selected" : "",
-        currentSymbol=="v" ? " selected" : "",
-        currentSymbol=="b" ? " selected" : "",
-        currentSymbol=="k" ? " selected" : "",
-        currentSymbol=="s" ? " selected" : "",
-        currentSymbol=="'" ? " selected" : "",
-        currentSymbol=="^" ? " selected" : "",
-        currentSymbol=="[" ? " selected" : "",
-        currentSymbol=="-" ? " selected" : "",
-        currentSymbol=="_" ? " selected" : "",
-        currentSymbol=="!" ? " selected" : "",
-        currentSymbol=="a" ? " selected" : "",
-        currentSymbol=="f" ? " selected" : "",
-        currentSymbol=="j" ? " selected" : "",
-        currentSymbol=="u" ? " selected" : "",
-        currentSymbol=="O" ? " selected" : "",
-        currentSymbol=="/" ? " selected" : "",
-        currentSymbol=="R" ? " selected" : "",
-        currentSymbol=="Y" ? " selected" : "");
-    WiFiManagerParameter paramSymbolDropdown(symbolHtml);
+    paramSymbol = new WiFiManagerParameter("symbol", "Symbol (n=car, /=dot, etc)", symbolBuf, 4,
+                                       "maxlength='1' placeholder='n'");
     
-    // Symbol Table (Primary / or Alternate \)
-    char symbolTableHtml[512];
-    String currentTable = String(symbolTableBuf[0]);
-    snprintf(symbolTableHtml, sizeof(symbolTableHtml),
-        "<label for='symbol_table'>Symbol Table</label>"
-        "<select name='symbol_table' id='symbol_table'>"
-        "<option value='/'%s>/ - Primary (most common)</option>"
-        "<option value='\\'%s>\\ - Alternate (special)</option>"
-        "</select>"
-        "<br><small>Primary (/) has standard icons, Alternate (\\) has variations</small>",
-        currentTable=="/" ? " selected" : "",
-        currentTable=="\\" ? " selected" : "");
-    WiFiManagerParameter paramSymbolTableDropdown(symbolTableHtml);
+    paramSymbolTable = new WiFiManagerParameter("symbol_table", "Symbol Table (/ or \\\\)", symbolTableBuf, 4,
+                                       "maxlength='1' placeholder='/'");
     
     WiFiManagerParameter pathHeading("<h3>Digipeater Path</h3>");
     wm.addParameter(&pathHeading);
     
-    WiFiManagerParameter paramPath1("path1", "Path 1 (e.g., WIDE1)", path1Buf, 10);
-    WiFiManagerParameter paramPath1Ssid("path1_ssid", "Path 1 SSID (1-7)", path1SsidBuf, 8,
+    paramPath1 = new WiFiManagerParameter("path1", "Path 1 (e.g., WIDE1)", path1Buf, 10);
+    paramPath1Ssid = new WiFiManagerParameter("path1_ssid", "Path 1 SSID (1-7)", path1SsidBuf, 8,
                                        "type='number' min='1' max='7'");
-    WiFiManagerParameter paramPath2("path2", "Path 2 (e.g., WIDE2)", path2Buf, 10);
-    WiFiManagerParameter paramPath2Ssid("path2_ssid", "Path 2 SSID (1-7)", path2SsidBuf, 8,
+    paramPath2 = new WiFiManagerParameter("path2", "Path 2 (e.g., WIDE2)", path2Buf, 10);
+    paramPath2Ssid = new WiFiManagerParameter("path2_ssid", "Path 2 SSID (1-7)", path2SsidBuf, 8,
                                        "type='number' min='1' max='7'");
     
     WiFiManagerParameter radioHeading("<h3>Radio Settings</h3>");
     wm.addParameter(&radioHeading);
     
-    WiFiManagerParameter paramFrequency("frequency", "Frequency (MHz, e.g., 144.9900)", frequencyBuf, 16,
+    paramFrequency = new WiFiManagerParameter("frequency", "Frequency (MHz, e.g., 144.9900)", frequencyBuf, 16,
                                        "type='number' step='0.0001' min='144' max='148'");
-    WiFiManagerParameter paramPreamble("preamble", "PTT Preamble (ms, 100-1000)", preambleBuf, 8,
+    paramPreamble = new WiFiManagerParameter("preamble", "PTT Preamble (ms, 100-1000)", preambleBuf, 8,
                                       "type='number' min='100' max='1000'");
-    WiFiManagerParameter paramTail("tail", "PTT Tail (ms, 10-500)", tailBuf, 8,
+    paramTail = new WiFiManagerParameter("tail", "PTT Tail (ms, 10-500)", tailBuf, 8,
                                    "type='number' min='10' max='500'");
-    WiFiManagerParameter paramUpdateInterval("update_interval", "Update Interval (minutes, 1-60)", updateIntervalBuf, 8,
+    paramUpdateInterval = new WiFiManagerParameter("update_interval", "Update Interval (minutes, 1-60)", updateIntervalBuf, 8,
                                              "type='number' min='1' max='60'");
     
     // Add all parameters
-    wm.addParameter(&paramCallsign);
-    wm.addParameter(&paramSsidDropdown);
-    wm.addParameter(&paramSymbolDropdown);
-    wm.addParameter(&paramSymbolTableDropdown);
-    wm.addParameter(&paramPath1);
-    wm.addParameter(&paramPath1Ssid);
-    wm.addParameter(&paramPath2);
-    wm.addParameter(&paramPath2Ssid);
-    wm.addParameter(&paramFrequency);
-    wm.addParameter(&paramPreamble);
-    wm.addParameter(&paramTail);
-    wm.addParameter(&paramUpdateInterval);
+    wm.addParameter(paramCallsign);
+    wm.addParameter(paramSsid);
+    wm.addParameter(paramSymbol);
+    wm.addParameter(paramSymbolTable);
+    wm.addParameter(paramPath1);
+    wm.addParameter(paramPath1Ssid);
+    wm.addParameter(paramPath2);
+    wm.addParameter(paramPath2Ssid);
+    wm.addParameter(paramFrequency);
+    wm.addParameter(paramPreamble);
+    wm.addParameter(paramTail);
+    wm.addParameter(paramUpdateInterval);
     
     // Generate portal SSID
     String portalSSID;

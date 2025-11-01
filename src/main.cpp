@@ -33,6 +33,9 @@ float lastLat = 0.0;
 float lastLon = 0.0;
 float lastAlt = 0.0;
 
+// Global APRS config - must persist so pointers remain valid
+APRSConfig g_aprsConfig;
+
 // ============================================================================
 // Setup Functions
 // ============================================================================
@@ -81,9 +84,6 @@ void setupRadio() {
    Serial.println("\nInitializing DRA818 Radio...");
    Serial.printf("[GPIO] PTT=%d PD=%d DAC_OUT=%d\n", RADIO_PTT, RADIO_PD, RADIO_AUDIO_OUT);
 
-   // Load config from Settings
-   APRSConfig config = loadAPRSConfig();
-
    // Set up radio control pins but DON'T power on yet
    pinMode(RADIO_PD, OUTPUT);
    pinMode(RADIO_PTT, OUTPUT);
@@ -102,9 +102,9 @@ void setupRadio() {
    digitalWrite(RADIO_PD, HIGH);
    delay(1000);
 
-   // Configure radio with values from Settings
+   // Configure radio with values from global config
    RadioManager::RadioConfig radioConfig;
-   radioConfig.frequency = config.frequency;
+   radioConfig.frequency = g_aprsConfig.frequency;
    radioConfig.squelch_level = RADIO_SQUELCH_LEVEL;
    radioConfig.volume = RADIO_AUDIO_OUTPUT_VOLUME;
    radioConfig.mic_gain = RADIO_MIC_VOLUME;
@@ -116,7 +116,7 @@ void setupRadio() {
     if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
         Serial.println("✓ Radio initialized successfully");
         Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n",
-                     config.frequency, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
+                     g_aprsConfig.frequency, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
                      RADIO_AUDIO_OUTPUT_VOLUME, PTT_ACTIVE_LOW ? "ACTIVE_LOW" : "ACTIVE_HIGH");
         
         // Set microphone volume (as per old project)
@@ -129,20 +129,18 @@ void setupRadio() {
 void setupAPRS() {
    Serial.println("\nInitializing APRS...");
 
-   // Load config from Settings
-   APRSConfig config = loadAPRSConfig();
-
+   // Use global config so pointers remain valid throughout program lifetime
    APRS::Config aprsConfig;
-   aprsConfig.callsign = config.callsign;
-   aprsConfig.ssid = config.ssid;
-   aprsConfig.path1 = config.path1;
-   aprsConfig.path1_ssid = config.path1_ssid;
-   aprsConfig.path2 = config.path2;
-   aprsConfig.path2_ssid = config.path2_ssid;
-   aprsConfig.symbol = config.symbol;
-   aprsConfig.symbol_table = config.symbol_table;
-   aprsConfig.preamble_ms = config.preamble_ms;
-   aprsConfig.tail_ms = config.tail_ms;
+   aprsConfig.callsign = g_aprsConfig.callsign;
+   aprsConfig.ssid = g_aprsConfig.ssid;
+   aprsConfig.path1 = g_aprsConfig.path1;
+   aprsConfig.path1_ssid = g_aprsConfig.path1_ssid;
+   aprsConfig.path2 = g_aprsConfig.path2;
+   aprsConfig.path2_ssid = g_aprsConfig.path2_ssid;
+   aprsConfig.symbol = g_aprsConfig.symbol;
+   aprsConfig.symbol_table = g_aprsConfig.symbol_table;
+   aprsConfig.preamble_ms = g_aprsConfig.preamble_ms;
+   aprsConfig.tail_ms = g_aprsConfig.tail_ms;
    aprsConfig.ptt_pin = RADIO_PTT;
 
    if (aprs.begin(aprsConfig)) {
@@ -234,9 +232,8 @@ void sendAPRSTelemetry() {
 void transmitAPRS() {
    unsigned long now = millis();
 
-   // Load config to get update interval
-   APRSConfig config = loadAPRSConfig();
-   unsigned long tx_interval_ms = config.update_interval_min * 60 * 1000; // Convert minutes to ms
+   // Use global config for update interval
+   unsigned long tx_interval_ms = g_aprsConfig.update_interval_min * 60 * 1000; // Convert minutes to ms
 
    // Check if it's time to transmit
    if (now - lastTransmission < tx_interval_ms && lastTransmission != 0) {
@@ -268,7 +265,7 @@ void transmitAPRS() {
    lastTransmission = now;
    transmissionCount++;
 
-   Serial.printf("\nNext transmission in %d minutes\n", config.update_interval_min);
+   Serial.printf("\nNext transmission in %d minutes\n", g_aprsConfig.update_interval_min);
    Serial.println("=====================================\n");
 }
 
@@ -317,6 +314,34 @@ void setup() {
    // Normal operation - disable WiFi completely
    WiFi.mode(WIFI_OFF);
    esp_wifi_stop();
+
+   // Load APRS configuration into global variable
+   g_aprsConfig = loadAPRSConfig();
+   
+   // Debug: Show loaded configuration
+   Serial.println();
+   Serial.println("[CONFIG] Loaded configuration from storage:");
+   Serial.print("  Callsign: ");
+   Serial.print(g_aprsConfig.callsign);
+   Serial.print("-");
+   Serial.println(g_aprsConfig.ssid);
+   Serial.print("  Symbol: '");
+   Serial.print(g_aprsConfig.symbol);
+   Serial.print("' (0x");
+   Serial.print(g_aprsConfig.symbol, HEX);
+   Serial.println(")");
+   Serial.print("  Symbol Table: '");
+   Serial.print(g_aprsConfig.symbol_table);
+   Serial.print("' (0x");
+   Serial.print(g_aprsConfig.symbol_table, HEX);
+   Serial.println(")");
+   Serial.print("  Frequency: ");
+   Serial.print(g_aprsConfig.frequency, 4);
+   Serial.println(" MHz");
+   Serial.print("  Update interval: ");
+   Serial.print(g_aprsConfig.update_interval_min);
+   Serial.println(" minutes");
+   Serial.println();
 
    // Initialize all subsystems
    setupSerial();

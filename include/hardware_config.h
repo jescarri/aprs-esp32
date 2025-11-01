@@ -105,7 +105,7 @@
 // ============================================================================
 #define APRS_SSID               15
 #define OPEN_SQUELCH            false
-#define DEFAULT_APRS_CALLSIGN   "VA7RCV"
+#define DEFAULT_APRS_CALLSIGN   "NOCALL"
 #define DEFAULT_APRS_SYMBOL     'n'          // Navigation/car
 #define DEFAULT_APRS_TABLE      '/'          // Primary symbol table
 #define DEFAULT_PREAMBLE_MS     350          // Pre-transmission flags

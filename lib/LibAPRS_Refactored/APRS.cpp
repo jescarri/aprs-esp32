@@ -86,7 +86,7 @@ bool APRSClient::sendPosition(float lat, float lon,
     
     // Build path and send
     AX25Call src = makeCall(_config.callsign, _config.ssid);
-    AX25Call dst = makeCall("APRS", 0);
+    AX25Call dst = makeCall("APZMDR", 0);  // Open Source MDroid TOCALL
     AX25Call path[2]; size_t path_len;
     buildPath(path, path_len);
     
@@ -103,7 +103,7 @@ bool APRSClient::sendTelemetry(const TelemetryData& data, bool auto_increment) {
     }
     
     AX25Call src = makeCall(_config.callsign, _config.ssid);
-    AX25Call dst = makeCall("APRS", 0);
+    AX25Call dst = makeCall("APZMDR", 0);  // Open Source MDroid TOCALL
     AX25Call path[2]; size_t path_len;
     buildPath(path, path_len);
     
@@ -114,11 +114,11 @@ bool APRSClient::sendTelemetry(const TelemetryData& data, bool auto_increment) {
 bool APRSClient::sendTelemetryDefinitions() {
     char parm[128];
     char unit[128];
-    size_t len_parm = TelemetryBuilder::buildStandardParmPacket(parm);
-    size_t len_unit = TelemetryBuilder::buildStandardUnitPacket(unit);
+    size_t len_parm = TelemetryBuilder::buildStandardParmPacket(_config.callsign, _config.ssid, parm);
+    size_t len_unit = TelemetryBuilder::buildStandardUnitPacket(_config.callsign, _config.ssid, unit);
     
     AX25Call src = makeCall(_config.callsign, _config.ssid);
-    AX25Call dst = makeCall("APRS", 0);
+    AX25Call dst = makeCall("APZMDR", 0);  // Open Source MDroid TOCALL
     AX25Call path[2]; size_t path_len;
     buildPath(path, path_len);
     
@@ -138,7 +138,7 @@ bool APRSClient::sendMessage(const char* message) {
     size_t length = strnlen(message, 255);
     
     AX25Call src = makeCall(_config.callsign, _config.ssid);
-    AX25Call dst = makeCall("APRS", 0);
+    AX25Call dst = makeCall("APZMDR", 0);  // Open Source MDroid TOCALL
     AX25Call path[2]; size_t path_len;
     buildPath(path, path_len);
     
@@ -149,7 +149,7 @@ bool APRSClient::sendRawPacket(const uint8_t* payload, size_t length) {
     if (!payload || length == 0) return false;
     
     AX25Call src = makeCall(_config.callsign, _config.ssid);
-    AX25Call dst = makeCall("APRS", 0);
+    AX25Call dst = makeCall("APZMDR", 0);  // Open Source MDroid TOCALL
     AX25Call path[2]; size_t path_len;
     buildPath(path, path_len);
     
