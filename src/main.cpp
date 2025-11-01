@@ -75,13 +75,22 @@ void setupRadio() {
     Serial.println("\nInitializing DRA818 Radio...");
     Serial.printf("[GPIO] PTT=%d PD=%d DAC_OUT=%d\n", RADIO_PTT, RADIO_PD, RADIO_AUDIO_OUT);
     
-    // Set up radio control pins
+    // Set up radio control pins but DON'T power on yet
     pinMode(RADIO_PD, OUTPUT);
     pinMode(RADIO_PTT, OUTPUT);
-    digitalWrite(RADIO_PD, HIGH);  // Power on
-    digitalWrite(RADIO_PTT, PTT_ACTIVE_LOW ? HIGH : LOW);  // PTT off (idle)
+    digitalWrite(RADIO_PD, LOW);  // Keep powered off initially
+    digitalWrite(RADIO_PTT, PTT_ACTIVE_LOW ? HIGH : LOW);  // PTT off
     
-    delay(100);  // Give radio time to power up
+    // Flush serial and wait (old code timing: flush, 2s delay, then power on)
+    while (!Serial2) { /* wait */ }
+    Serial2.flush();
+    Serial.println("Waiting 2 seconds before powering radio...");
+    delay(2000);  // OLD CODE: 2 second delay after flush
+    
+    // NOW power on the radio
+    Serial.println("Powering on radio (PD=HIGH)...");
+    digitalWrite(RADIO_PD, HIGH);  
+    delay(1000);  // OLD CODE: 1 second delay after power on
     
     // Configure radio
     RadioManager::RadioConfig radioConfig;
@@ -93,6 +102,7 @@ void setupRadio() {
     radioConfig.rx_enable = true;
     radioConfig.tx_enable = true;
     
+    Serial.println("Calling radio.begin()...");
     if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
         Serial.println("✓ Radio initialized successfully");
         Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n",

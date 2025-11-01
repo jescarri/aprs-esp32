@@ -21,9 +21,8 @@ bool RadioManager::begin(HardwareSerial* serial,
         return false;
     }
     
-    // Power up the module
-    digitalWrite(_pd_pin, HIGH);
-    delay(2000);  // Wait for module to stabilize
+    // Note: PD pin power-up is handled in main.cpp with proper timing
+    // (2s delay after serial flush, then PD=HIGH, then 1s delay)
     
     // Configure the radio
     uint8_t conf_result = _radio.configure(
