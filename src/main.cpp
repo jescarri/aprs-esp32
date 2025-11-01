@@ -208,9 +208,10 @@ void sendAPRSTelemetry() {
 
 void transmitAPRS() {
     unsigned long now = millis();
+    unsigned long tx_interval_ms = APRS_TX_CYCLE_SECONDS * 1000;
     
     // Check if it's time to transmit
-    if (now - lastTransmission < APRS_TX_INTERVAL_MS && lastTransmission != 0) {
+    if (now - lastTransmission < tx_interval_ms && lastTransmission != 0) {
         return;  // Not time yet
     }
     
@@ -239,7 +240,7 @@ void transmitAPRS() {
     lastTransmission = now;
     transmissionCount++;
     
-    Serial.printf("\nNext transmission in %d seconds\n", APRS_TX_INTERVAL_MS / 1000);
+    Serial.printf("\nNext transmission in %d seconds\n", APRS_TX_CYCLE_SECONDS);
     Serial.println("=====================================\n");
 }
 
