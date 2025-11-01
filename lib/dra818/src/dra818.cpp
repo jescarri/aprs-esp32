@@ -3,11 +3,10 @@
 #include <Stream.h>
 #include <stdio.h>
 
-dra818::dra818(uint8_t ptt_pin, uint8_t pd_pin, uint8_t txt_pow_pin)
+dra818::dra818(uint8_t ptt_pin, uint8_t pd_pin)
 {
     this->ptt_pin = ptt_pin;
     this->pd_pin = pd_pin;
-    this->txt_pow_pin = txt_pow_pin;
 }
 
 uint8_t dra818::configure(Stream* serial, float rx_freq, float tx_freq, uint8_t tx_ctcss, uint8_t rx_ctcss, uint8_t sql, uint8_t out_vol, uint8_t mic_vol, bool preemph, bool highpass, bool lowpass)
@@ -16,7 +15,6 @@ uint8_t dra818::configure(Stream* serial, float rx_freq, float tx_freq, uint8_t 
     //Initialize the PTT and PD pins
     pinMode(this->ptt_pin, OUTPUT);
     pinMode(this->pd_pin, OUTPUT);
-    pinMode(this->txt_pow_pin, OUTPUT);
 
     // ToDo: Add better validation of tx/rx frequency, tx and rx should be in the same band.
     if ((tx_freq > 136.0 && tx_freq < 174.00) || (tx_freq > 410.0 && tx_freq < 480.000)) {
@@ -95,7 +93,8 @@ void dra818::setModulePowerState(uint8_t power_state)
 
 void dra818::setTxtPower(uint8_t power)
 {
-    digitalWrite(this->txt_pow_pin, power);
+    // TX power pin not used on this hardware
+    // Method kept for API compatibility
 }
 
 bool dra818::modulePresent()

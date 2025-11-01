@@ -1,7 +1,7 @@
 #include "RadioManager.h"
 
 RadioManager::RadioManager() 
-    : _radio(RADIO_PTT, RADIO_PD, -1),  // -1 = no TX power pin
+    : _radio(RADIO_PTT, RADIO_PD),
       _serial(nullptr),
       _pd_pin((gpio_num_t)RADIO_PD),
       _ptt_pin((gpio_num_t)RADIO_PTT),

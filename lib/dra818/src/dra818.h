@@ -32,7 +32,7 @@
 
 class dra818 {
 public:
-    dra818(uint8_t ptt_pin, uint8_t pd_pin, uint8_t txt_pow_pin);
+    dra818(uint8_t ptt_pin, uint8_t pd_pin);
 
     // Initialize Internal values
     uint8_t configure(Stream* serial, float rx_freq, float tx_freq, uint8_t tx_ctcss, uint8_t rx_ctcss, uint8_t sql, uint8_t out_vol, uint8_t mic_vol, bool preemph, bool highpass, bool lowpass);
@@ -51,7 +51,6 @@ private:
     Stream* serial;
     uint8_t ptt_pin;
     uint8_t pd_pin;
-    uint8_t txt_pow_pin;
     uint8_t tx_ctcss;
     uint8_t rx_ctcss;
     float tx_freq;
