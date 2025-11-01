@@ -128,12 +128,102 @@ bool startConfigPortal(int timeoutSeconds)
     
     WiFiManagerParameter paramCallsign("callsign", "Callsign (max 6 chars)", callsignBuf, 10, 
                                        "maxlength='6' pattern='[A-Z0-9]{1,6}' style='text-transform:uppercase'");
-    WiFiManagerParameter paramSsid("ssid", "SSID (0-15, see aprs.org/aprs11/SSIDs.txt)", ssidBuf, 8,
-                                   "type='number' min='0' max='15'");
-    WiFiManagerParameter paramSymbol("symbol", "Symbol (one char, see aprs.org/symbols.html)", symbolBuf, 4,
-                                     "maxlength='1'");
-    WiFiManagerParameter paramSymbolTable("symbol_table", "Symbol Table (/ or \\)", symbolTableBuf, 4,
-                                         "maxlength='1' pattern='[/\\\\]'");
+    
+    // SSID Dropdown with descriptions
+    char ssidHtml[1024];
+    snprintf(ssidHtml, sizeof(ssidHtml),
+        "<label for='ssid'>SSID (Station Type)</label>"
+        "<select name='ssid' id='ssid'>"
+        "<option value='0'%s>0 - 🏠 Primary station (usually home)</option>"
+        "<option value='7'%s>7 - 📱 Handheld radio</option>"
+        "<option value='9'%s>9 - 🚗 Mobile (car/truck)</option>"
+        "<option value='1'%s>1 - 📡 Generic/Digipeater</option>"
+        "<option value='5'%s>5 - 🌐 Other networks</option>"
+        "<option value='8'%s>8 - ⛵ Boats/ships/aircraft</option>"
+        "<option value='10'%s>10 - 💻 Internet/D-STAR</option>"
+        "<option value='11'%s>11 - 🎈 Balloons</option>"
+        "<option value='12'%s>12 - 🎒 Portable (camping)</option>"
+        "<option value='13'%s>13 - 🌦️ Weather station</option>"
+        "<option value='14'%s>14 - 🚚 Trucking</option>"
+        "<option value='15'%s>15 - ➕ Generic additional</option>"
+        "</select>",
+        atoi(ssidBuf)==0 ? " selected" : "",
+        atoi(ssidBuf)==7 ? " selected" : "",
+        atoi(ssidBuf)==9 ? " selected" : "",
+        atoi(ssidBuf)==1 ? " selected" : "",
+        atoi(ssidBuf)==5 ? " selected" : "",
+        atoi(ssidBuf)==8 ? " selected" : "",
+        atoi(ssidBuf)==10 ? " selected" : "",
+        atoi(ssidBuf)==11 ? " selected" : "",
+        atoi(ssidBuf)==12 ? " selected" : "",
+        atoi(ssidBuf)==13 ? " selected" : "",
+        atoi(ssidBuf)==14 ? " selected" : "",
+        atoi(ssidBuf)==15 ? " selected" : "");
+    WiFiManagerParameter paramSsidDropdown(ssidHtml);
+    
+    // Symbol Dropdown with Unicode icons
+    char symbolHtml[2048];
+    String currentSymbol = String(symbolBuf[0]);
+    snprintf(symbolHtml, sizeof(symbolHtml),
+        "<label for='symbol'>APRS Symbol (Map Icon)</label>"
+        "<select name='symbol' id='symbol'>"
+        "<option value='n'%s>🚗 Car/Truck (n)</option>"
+        "<option value='>'%s>🚙 Small car (>)</option>"
+        "<option value='v'%s>🚐 Van (v)</option>"
+        "<option value='b'%s>🚲 Bicycle (b)</option>"
+        "<option value='k'%s>🚢 Ship/boat (k)</option>"
+        "<option value='s'%s>⛵ Sailboat (s)</option>"
+        "<option value='\''%s>✈️ Small aircraft (')</option>"
+        "<option value='^'%s>🛩️ Large aircraft (^)</option>"
+        "<option value='['%s>👤 Person (jogger) ([)</option>"
+        "<option value='-'%s>🏠 House (-)</option>"
+        "<option value='_'%s>🌦️ Weather station (_)</option>"
+        "<option value='!'%s>🚨 Police/Fire (!)</option>"
+        "<option value='a'%s>🚑 Ambulance (a)</option>"
+        "<option value='f'%s>🚒 Fire truck (f)</option>"
+        "<option value='j'%s>🚙 Jeep (j)</option>"
+        "<option value='u'%s>🚚 Truck (u)</option>"
+        "<option value='O'%s>🎈 Balloon (O)</option>"
+        "<option value='/'%s>⚫ Dot (/)</option>"
+        "<option value='R'%s>🚘 Recreational vehicle (R)</option>"
+        "<option value='Y'%s>⛵ Yacht (Y)</option>"
+        "</select>"
+        "<br><small>Symbol appears as icon on APRS maps</small>",
+        currentSymbol=="n" ? " selected" : "",
+        currentSymbol==">" ? " selected" : "",
+        currentSymbol=="v" ? " selected" : "",
+        currentSymbol=="b" ? " selected" : "",
+        currentSymbol=="k" ? " selected" : "",
+        currentSymbol=="s" ? " selected" : "",
+        currentSymbol=="'" ? " selected" : "",
+        currentSymbol=="^" ? " selected" : "",
+        currentSymbol=="[" ? " selected" : "",
+        currentSymbol=="-" ? " selected" : "",
+        currentSymbol=="_" ? " selected" : "",
+        currentSymbol=="!" ? " selected" : "",
+        currentSymbol=="a" ? " selected" : "",
+        currentSymbol=="f" ? " selected" : "",
+        currentSymbol=="j" ? " selected" : "",
+        currentSymbol=="u" ? " selected" : "",
+        currentSymbol=="O" ? " selected" : "",
+        currentSymbol=="/" ? " selected" : "",
+        currentSymbol=="R" ? " selected" : "",
+        currentSymbol=="Y" ? " selected" : "");
+    WiFiManagerParameter paramSymbolDropdown(symbolHtml);
+    
+    // Symbol Table (Primary / or Alternate \)
+    char symbolTableHtml[512];
+    String currentTable = String(symbolTableBuf[0]);
+    snprintf(symbolTableHtml, sizeof(symbolTableHtml),
+        "<label for='symbol_table'>Symbol Table</label>"
+        "<select name='symbol_table' id='symbol_table'>"
+        "<option value='/'%s>/ - Primary (most common)</option>"
+        "<option value='\\'%s>\\ - Alternate (special)</option>"
+        "</select>"
+        "<br><small>Primary (/) has standard icons, Alternate (\\) has variations</small>",
+        currentTable=="/" ? " selected" : "",
+        currentTable=="\\" ? " selected" : "");
+    WiFiManagerParameter paramSymbolTableDropdown(symbolTableHtml);
     
     WiFiManagerParameter pathHeading("<h3>Digipeater Path</h3>");
     wm.addParameter(&pathHeading);
@@ -159,9 +249,9 @@ bool startConfigPortal(int timeoutSeconds)
     
     // Add all parameters
     wm.addParameter(&paramCallsign);
-    wm.addParameter(&paramSsid);
-    wm.addParameter(&paramSymbol);
-    wm.addParameter(&paramSymbolTable);
+    wm.addParameter(&paramSsidDropdown);
+    wm.addParameter(&paramSymbolDropdown);
+    wm.addParameter(&paramSymbolTableDropdown);
     wm.addParameter(&paramPath1);
     wm.addParameter(&paramPath1Ssid);
     wm.addParameter(&paramPath2);
