@@ -1,4 +1,4 @@
-# ESP32 APRS Tracker - Refactored Library
+# ESP32 APRS Tracker
 
 A clean, modern C++ implementation of APRS for ESP32 with proper encapsulation, type-safe APIs, and no global state anti-patterns.
 
