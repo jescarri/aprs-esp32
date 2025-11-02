@@ -94,8 +94,8 @@ void setupRadio() {
    while (!Serial2) { /* wait */
    }
    Serial2.flush();
-   Serial.println("Waiting 2 seconds before powering radio...");
-   delay(2000);
+   Serial.println("Waiting before powering radio...");
+   delay(500);
 
    // NOW power on the radio
    Serial.println("Powering on radio (PD=HIGH)...");
@@ -112,18 +112,18 @@ void setupRadio() {
    radioConfig.rx_enable = true;
    radioConfig.tx_enable = true;
 
-    Serial.println("Calling radio.begin()...");
-    if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
-        Serial.println("✓ Radio initialized successfully");
-        Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n",
-                     g_aprsConfig.frequency, RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME,
-                     RADIO_AUDIO_OUTPUT_VOLUME, PTT_ACTIVE_LOW ? "ACTIVE_LOW" : "ACTIVE_HIGH");
-        
-        // Set microphone volume (as per old project)
-        radio.setMicVolume();
-    } else {
-        Serial.println("✗ Radio initialization FAILED!");
-    }
+   Serial.println("Calling radio.begin()...");
+   if (radio.begin(&Serial2, (gpio_num_t)RADIO_PD, (gpio_num_t)RADIO_PTT, radioConfig)) {
+      Serial.println("✓ Radio initialized successfully");
+      Serial.printf("[RADIO] Freq=%.4f MHz SQ=%d Mic=%d AF=%d PTTpol=%s PD=HIGH\n", g_aprsConfig.frequency,
+                    RADIO_SQUELCH_LEVEL, RADIO_MIC_VOLUME, RADIO_AUDIO_OUTPUT_VOLUME,
+                    PTT_ACTIVE_LOW ? "ACTIVE_LOW" : "ACTIVE_HIGH");
+
+      // Set microphone volume (as per old project)
+      radio.setMicVolume();
+   } else {
+      Serial.println("✗ Radio initialization FAILED!");
+   }
 }
 
 void setupAPRS() {
@@ -248,19 +248,15 @@ void transmitAPRS() {
    sendAPRSPosition();
    delay(2000); // Wait between packets
 
-   // Send telemetry every 3rd transmission
-   if (transmissionCount % TELEMETRY_EVERY_N_POS == 0) {
-      // Send telemetry definitions first time
-      if (transmissionCount == 0) {
-         Serial.println("\n--- Sending Telemetry Definitions ---");
-         if (aprs.sendTelemetryDefinitions()) {
-            Serial.println("✓ Telemetry definitions sent");
-         }
-         delay(2000);
-      }
-
-      sendAPRSTelemetry();
+   // Send telemetry definitions
+   Serial.println("\n--- Sending Telemetry Definitions ---");
+   if (aprs.sendTelemetryDefinitions()) {
+      Serial.println("✓ Telemetry definitions sent");
    }
+   delay(1000);
+
+   // Send telemetry data
+   sendAPRSTelemetry();
 
    lastTransmission = now;
    transmissionCount++;
@@ -317,7 +313,7 @@ void setup() {
 
    // Load APRS configuration into global variable
    g_aprsConfig = loadAPRSConfig();
-   
+
    // Debug: Show loaded configuration
    Serial.println();
    Serial.println("[CONFIG] Loaded configuration from storage:");
